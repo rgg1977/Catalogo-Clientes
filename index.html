@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Clientes PRO</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="loginSection" class="container login-box">
+        <h2>🔐 Acceso al Sistema</h2>
+        <form id="loginForm">
+            <input type="text" id="userInput" placeholder="Usuario" required>
+            <input type="password" id="passInput" placeholder="Contraseña" required>
+            <button type="submit" class="btn-save">Ingresar</button>
+        </form>
+        <p id="loginError" class="error-msg">Usuario o contraseña incorrectos.</p>
+    </div>
+
+    <div id="mainContent" class="container" style="display: none;">
+        <div class="header">
+            <h2>Catálogo de Clientes</h2>
+            <button class="btn-close" onclick="logout()">Cerrar Sesión</button>
+        </div>
+        
+        <form id="clientForm">
+            <div class="grid">
+                <input type="text" id="codigo" placeholder="Código" required>
+                <input type="text" id="nombre" placeholder="Nombre" required>
+                <input type="text" id="apellidoPaterno" placeholder="Ap. Paterno" required>
+                <input type="text" id="apellidoMaterno" placeholder="Ap. Materno" required>
+                <input type="text" id="curp" placeholder="CURP" required maxlength="18">
+                <input type="text" id="ine" placeholder="No. INE" required>
+                <input type="text" id="direccion" placeholder="Dirección" required>
+                <input type="tel" id="telefono" placeholder="Teléfono" required>
+                <select id="estatus">
+                    <option value="Activo">Activo</option>
+                    <option value="Inactivo">Inactivo</option>
+                </select>
+            </div>
+            
+            <div class="button-group">
+                <button type="submit" class="btn-save">💾 Guardar</button>
+                <button type="button" class="btn-clear" onclick="limpiarFormulario()">🧹 Limpiar</button>
+                <button type="button" class="btn-export" onclick="exportarCSV()">📊 Exportar Excel</button>
+                <button type="button" class="btn-delete-all" onclick="eliminarTodo()">🗑️ Borrar Todo</button>
+            </div>
+        </form>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="🔍 Buscar por nombre, código o CURP..." onkeyup="buscarCliente()">
+        </div>
+
+        <div class="table-wrapper">
+            <table id="clientTable">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nombre Completo</th>
+                        <th>CURP</th>
+                        <th>INE</th>
+                        <th>Teléfono</th>
+                        <th>Estatus</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
