@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Gestión Financiera</title>
+    <title>Sistema Financiero v6.0</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -17,7 +17,6 @@
             <input type="password" id="passInput" placeholder="Contraseña (1234)" required>
             <button type="submit" class="btn-save">Ingresar</button>
         </form>
-        <p id="loginError" class="error-msg">Usuario o contraseña incorrectos.</p>
     </div>
 
     <div id="mainMenu" class="container" style="display: none; text-align: center;">
@@ -36,10 +35,22 @@
         </div>
         <form id="clientForm">
             <div class="grid">
-                <input type="text" id="codigo" placeholder="Código" required>
-                <input type="text" id="nombre" placeholder="Nombre" required>
-                <input type="text" id="apellidoPaterno" placeholder="Ap. Paterno" required>
-                <input type="text" id="apellidoMaterno" placeholder="Ap. Materno" required>
+                <div class="input-group">
+                    <label>Código Cliente (Auto):</label>
+                    <input type="text" id="codigo" readonly style="background: #eee; font-weight: bold;">
+                </div>
+                <div class="input-group">
+                    <label>Nombre(s):</label>
+                    <input type="text" id="nombre" required>
+                </div>
+                <div class="input-group">
+                    <label>Ap. Paterno:</label>
+                    <input type="text" id="apellidoPaterno" required>
+                </div>
+                <div class="input-group">
+                    <label>Ap. Materno:</label>
+                    <input type="text" id="apellidoMaterno" required>
+                </div>
                 <input type="text" id="curp" placeholder="CURP" required maxlength="18">
                 <input type="text" id="ine" placeholder="No. INE" required>
                 <input type="text" id="direccion" placeholder="Dirección" required>
@@ -50,8 +61,9 @@
                 </select>
             </div>
             <div class="button-group">
-                <button type="submit" id="btnGuardarCliente" class="btn-save">💾 Guardar</button>
+                <button type="submit" class="btn-save">💾 Guardar Cliente</button>
                 <button type="button" class="btn-clear" onclick="limpiarFormulario()">🧹 Limpiar</button>
+                <button type="button" class="btn-export" onclick="imprimirListadoClientesPDF()">🖨️ Imprimir PDF</button>
             </div>
         </form>
         <div class="table-wrapper">
@@ -65,47 +77,42 @@
     <div id="sectionCreditos" class="container" style="display: none;">
         <div class="header">
             <button onclick="showMenu()" class="btn-back">⬅ Menú</button>
-            <h2>💰 Gestión de Créditos Quincenales</h2>
+            <h2>💰 Alta de Crédito (15 y Último)</h2>
         </div>
         <form id="creditForm">
             <div class="grid">
-                <div style="display: flex; gap: 5px;">
-                    <input type="text" id="creditoClave" placeholder="Clave Cliente" readonly required>
-                    <button type="button" onclick="abrirBuscador()" class="btn-info">🔍</button>
+                <div class="input-group"><label>Folio:</label><input type="number" id="folio" readonly style="background: #eee;"></div>
+                <div class="input-group"><label>Fecha de Captura:</label><input type="date" id="fechaCaptura" required></div>
+                <div class="input-group">
+                    <label>Cliente:</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="text" id="creditoClave" placeholder="Clave" readonly required>
+                        <button type="button" onclick="abrirBuscador()" class="btn-info">🔍</button>
+                    </div>
                 </div>
-                <input type="text" id="creditoNombre" placeholder="Nombre del Cliente" readonly>
-                <input type="number" id="importe" placeholder="Importe Total ($)" required oninput="calcularPagos()">
-                <input type="number" id="numPagos" placeholder="Número de Quincenas" required oninput="calcularPagos()">
-                <input type="text" id="importePago" placeholder="Pago Quincenal" readonly>
-                <input type="date" id="fechaVencimiento" required>
+                <div class="input-group"><label>Nombre:</label><input type="text" id="creditoNombre" readonly></div>
+                <div class="input-group"><label>Importe Total:</label><input type="number" id="importe" required oninput="calcularPagos()"></div>
+                <div class="input-group"><label>Quincenas:</label><input type="number" id="numPagos" required oninput="calcularPagos()"></div>
+                <div class="input-group"><label>Pago Quincenal:</label><input type="text" id="importePago" readonly></div>
+                <div class="input-group"><label>Primer Vencimiento:</label><input type="date" id="fechaVencimiento" required></div>
             </div>
-            
             <div class="button-group">
                 <button type="submit" class="btn-save">📊 Generar Tabla</button>
                 <button type="button" class="btn-info" onclick="guardarCredito()">💾 Guardar</button>
+                <button type="button" class="btn-export" onclick="imprimirPDF()">🖨️ PDF</button>
                 <button type="button" class="btn-clear" onclick="limpiarFormCredito()">🧹 Limpiar</button>
-                <button type="button" class="btn-export" onclick="imprimirPDF()">🖨️ Imprimir PDF</button>
-                <button type="button" class="btn-del" onclick="borrarCreditoActual()">🗑️ Borrar</button>
             </div>
         </form>
-
-        <div id="tablaAmortizacionContainer" style="display:none; margin-top:30px;">
-            <h3>📅 Calendario de Pagos (Días 15 y Último)</h3>
-            <table id="amortTable">
-                <thead><tr><th>No. Pago</th><th>Fecha Vencimiento</th><th>Importe</th></tr></thead>
-                <tbody></tbody>
-            </table>
+        <div id="tablaAmortizacionContainer" style="display:none; margin-top:20px;">
+            <table id="amortTable"><thead><tr><th>No.</th><th>Fecha</th><th>Importe</th></tr></thead><tbody></tbody></table>
         </div>
     </div>
 
     <div id="modalBusqueda" class="modal">
         <div class="modal-content">
-            <h3>Seleccionar Cliente Activo</h3>
-            <table id="modalTable">
-                <thead><tr><th>Código</th><th>Nombre</th><th>Acción</th></tr></thead>
-                <tbody></tbody>
-            </table>
-            <button onclick="cerrarModal()" class="btn-del" style="margin-top:10px">Cancelar</button>
+            <h3>Seleccionar Cliente</h3>
+            <table id="modalTable"><thead><tr><th>Cód.</th><th>Nombre</th><th>Acción</th></tr></thead><tbody></tbody></table>
+            <button onclick="cerrarModal()" class="btn-del">Cerrar</button>
         </div>
     </div>
 
