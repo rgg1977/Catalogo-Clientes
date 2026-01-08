@@ -1,7 +1,7 @@
 let editIndex = null;
 const USER_OK = "admin", PASS_OK = "1234";
 
-// --- LOGIN Y NAVEGACIÓN ---
+// --- NAVEGACIÓN ---
 document.getElementById('loginForm').addEventListener('submit', (e) => {
     e.preventDefault();
     if(document.getElementById('userInput').value === USER_OK && document.getElementById('passInput').value === PASS_OK) {
@@ -29,7 +29,6 @@ function showSection(section) {
         cargarClientes();
     } else {
         document.getElementById('sectionCreditos').style.display = 'block';
-        document.getElementById('tablaAmortizacionContainer').style.display = 'none';
     }
 }
 
@@ -41,7 +40,7 @@ function ocultarTodo() {
 
 function logout() { sessionStorage.clear(); location.reload(); }
 
-// --- LÓGICA DE CLIENTES ---
+// --- CATÁLOGO CLIENTES ---
 document.getElementById('clientForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const cliente = {
@@ -69,8 +68,7 @@ function cargarClientes() {
     tbody.innerHTML = clientes.map((c, i) => `
         <tr>
             <td>${c.codigo}</td><td>${c.nombre} ${c.apellidoP}</td>
-            <td>${c.curp}</td><td>${c.telefono}</td>
-            <td style="color:${c.estatus=='Activo'?'green':'red'}"><b>${c.estatus}</b></td>
+            <td>${c.curp}</td><td><b>${c.estatus}</b></td>
             <td>
                 <button onclick="prepararEdicion(${i})" class="btn-info">✏️</button>
                 <button onclick="eliminarCliente(${i})" class="btn-del">🗑️</button>
@@ -78,7 +76,7 @@ function cargarClientes() {
         </tr>`).join('');
 }
 
-// --- LÓGICA DE CRÉDITOS (REGLA: DÍA 15 Y ÚLTIMO) ---
+// --- ALTA DE CRÉDITO Y PDF ---
 function abrirBuscador() {
     const clientes = (JSON.parse(localStorage.getItem('misClientes')) || []).filter(c => c.estatus === 'Activo');
     const tbody = document.querySelector('#modalTable tbody');
@@ -106,8 +104,6 @@ document.getElementById('creditForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const numPagos = parseInt(document.getElementById('numPagos').value);
     const importePago = document.getElementById('importePago').value;
-    
-    // Fecha seleccionada como inicio
     let fechaActual = new Date(document.getElementById('fechaVencimiento').value + "T00:00:00");
     
     const tbody = document.querySelector('#amortTable tbody');
@@ -115,30 +111,45 @@ document.getElementById('creditForm').addEventListener('submit', function(e) {
 
     for(let i = 1; i <= numPagos; i++) {
         let fechaPago = new Date(fechaActual);
-        
-        // Agregar fila a la tabla
-        tbody.innerHTML += `
-            <tr>
-                <td>${i}</td>
-                <td>${fechaPago.toLocaleDateString('es-MX')}</td>
-                <td>$ ${importePago}</td>
-            </tr>
-        `;
+        tbody.innerHTML += `<tr><td>${i}</td><td>${fechaPago.toLocaleDateString('es-MX')}</td><td>$ ${importePago}</td></tr>`;
 
-        // LÓGICA DE SALTO AL SIGUIENTE PERIODO (15 o Último)
+        // Regla: Día 15 -> Fin de mes | Fin de mes -> Día 15 próximo mes
         if (fechaActual.getDate() <= 15) {
-            // Si estamos en el 15 (o antes), el siguiente pago es el último día del MISMO mes
-            // El día 0 del siguiente mes es el último día del mes actual
             fechaActual = new Date(fechaActual.getFullYear(), fechaActual.getMonth() + 1, 0);
         } else {
-            // Si estamos a fin de mes, el siguiente pago es el día 15 del SIGUIENTE mes
             fechaActual = new Date(fechaActual.getFullYear(), fechaActual.getMonth() + 1, 15);
         }
     }
     document.getElementById('tablaAmortizacionContainer').style.display = 'block';
 });
 
+function imprimirPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const nombre = document.getElementById('creditoNombre').value;
+    if(!nombre) { alert("Genere la tabla primero"); return; }
+
+    doc.setFontSize(16);
+    doc.text("TABLA DE AMORTIZACIÓN QUINCENAL", 105, 20, { align: "center" });
+    doc.setFontSize(12);
+    doc.text(`Cliente: ${nombre}`, 20, 40);
+    doc.text(`Importe: $${document.getElementById('importe').value}`, 20, 50);
+
+    doc.autoTable({
+        startY: 60,
+        head: [['No.', 'Vencimiento', 'Importe']],
+        body: Array.from(document.querySelectorAll("#amortTable tbody tr")).map(tr => 
+            Array.from(tr.querySelectorAll("td")).map(td => td.innerText)
+        )
+    });
+    doc.save(`Credito_${nombre}.pdf`);
+}
+
 function cerrarModal() { document.getElementById('modalBusqueda').style.display = 'none'; }
+function limpiarFormulario() { document.getElementById('clientForm').reset(); }
+function limpiarFormCredito() { document.getElementById('creditForm').reset(); document.getElementById('tablaAmortizacionContainer').style.display = 'none'; }
+function borrarCreditoActual() { if(confirm("¿Borrar datos?")) limpiarFormCredito(); }
+function guardarCredito() { alert("Crédito Guardado Correctamente"); }
 function eliminarCliente(i) { if(confirm("¿Eliminar?")) { let c = JSON.parse(localStorage.getItem('misClientes')); c.splice(i,1); localStorage.setItem('misClientes', JSON.stringify(c)); cargarClientes(); } }
 
 checkLogin();
