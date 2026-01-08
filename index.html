@@ -1,130 +1,20 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Financiero v7.0</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-</head>
-<body>
-
-    <div id="loginSection" class="container login-box">
-        <h2>🔐 Acceso al Sistema</h2>
-        <form id="loginForm">
-            <input type="text" id="userInput" placeholder="Usuario (admin)" required>
-            <input type="password" id="passInput" placeholder="Contraseña (1234)" required>
-            <button type="submit" class="btn-save">Ingresar</button>
-        </form>
-        <p id="loginError" class="error-msg">Credenciales incorrectas.</p>
-    </div>
-
-    <div id="mainMenu" class="container" style="display: none; text-align: center;">
-        <h2>🏢 Panel de Control</h2>
-        <div class="menu-grid">
-            <button onclick="showSection('clientes')" class="btn-menu">👥 Catálogo de Clientes</button>
-            <button onclick="showSection('creditos')" class="btn-menu">💰 Alta de Crédito Quincenal</button>
-            <button onclick="logout()" class="btn-close">Cerrar Sesión</button>
-        </div>
-    </div>
-
-    <div id="sectionClientes" class="container" style="display: none;">
-        <div class="header">
-            <button onclick="showMenu()" class="btn-back">⬅ Menú</button>
-            <h2>👥 Catálogo de Clientes</h2>
-        </div>
-        <form id="clientForm">
-            <div class="grid">
-                <div class="input-group">
-                    <label>Código Cliente (Auto):</label>
-                    <input type="text" id="codigo" readonly class="readonly-input">
-                </div>
-                <div class="input-group"><label>Nombre(s):</label><input type="text" id="nombre" required></div>
-                <div class="input-group"><label>Ap. Paterno:</label><input type="text" id="apellidoPaterno" required></div>
-                <div class="input-group"><label>Ap. Materno:</label><input type="text" id="apellidoMaterno" required></div>
-                <input type="text" id="curp" placeholder="CURP" required maxlength="18">
-                <input type="text" id="ine" placeholder="No. INE" required>
-                <input type="text" id="direccion" placeholder="Dirección" required>
-                <input type="tel" id="telefono" placeholder="Teléfono" required>
-                <select id="estatus">
-                    <option value="Activo">Activo</option>
-                    <option value="Inactivo">Inactivo</option>
-                </select>
-            </div>
-            <div class="button-group">
-                <button type="submit" class="btn-save">💾 Guardar Cliente</button>
-                <button type="button" class="btn-clear" onclick="limpiarFormulario()">🧹 Limpiar</button>
-                <button type="button" class="btn-export" onclick="imprimirListadoClientesPDF()">🖨️ Imprimir Listado</button>
-            </div>
-        </form>
+<div id="modalHistorial" class="modal">
+    <div class="modal-content" style="width: 90%; max-height: 85vh;">
+        <h3>📋 Historial de Créditos Otorgados</h3>
         <div class="table-wrapper">
-            <table id="clientTable">
-                <thead><tr><th>Cód.</th><th>Nombre</th><th>CURP</th><th>Estatus</th><th>Acciones</th></tr></thead>
+            <table id="historialTable">
+                <thead>
+                    <tr>
+                        <th>Folio</th>
+                        <th>Cliente</th>
+                        <th>Fecha Captura</th>
+                        <th>Importe</th>
+                        <th>Pagos</th>
+                        <th>Acción</th> </tr>
+                </thead>
                 <tbody></tbody>
             </table>
         </div>
+        <button onclick="cerrarModalHistorial()" class="btn-del" style="margin-top:15px">Cerrar</button>
     </div>
-
-    <div id="sectionCreditos" class="container" style="display: none;">
-        <div class="header">
-            <button onclick="showMenu()" class="btn-back">⬅ Menú</button>
-            <h2>💰 Alta de Crédito Quincenal</h2>
-        </div>
-        <form id="creditForm">
-            <div class="grid">
-                <div class="input-group">
-                    <label>Folio:</label>
-                    <div style="display: flex; gap: 5px;">
-                        <input type="number" id="folio" readonly class="readonly-input">
-                        <button type="button" onclick="abrirHistorialCreditos()" class="btn-info">🔍</button>
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label>Fecha Captura:</label>
-                    <input type="date" id="fechaCaptura" required>
-                </div>
-                <div class="input-group">
-                    <label>Cliente:</label>
-                    <div style="display: flex; gap: 5px;">
-                        <input type="text" id="creditoClave" placeholder="Clave" readonly required>
-                        <button type="button" onclick="abrirBuscador()" class="btn-info">🔍</button>
-                    </div>
-                </div>
-                <div class="input-group"><label>Nombre:</label><input type="text" id="creditoNombre" readonly></div>
-                <div class="input-group"><label>Importe Total:</label><input type="number" id="importe" required oninput="calcularPagos()"></div>
-                <div class="input-group"><label>Quincenas:</label><input type="number" id="numPagos" required oninput="calcularPagos()"></div>
-                <div class="input-group"><label>Pago Quincenal:</label><input type="text" id="importePago" readonly></div>
-                <div class="input-group"><label>1er Vencimiento:</label><input type="date" id="fechaVencimiento" required></div>
-            </div>
-            <div class="button-group">
-                <button type="submit" class="btn-save">📊 Generar Tabla</button>
-                <button type="button" class="btn-info" onclick="guardarCredito()">💾 Guardar</button>
-                <button type="button" class="btn-export" onclick="imprimirPDF()">🖨️ Imprimir PDF</button>
-                <button type="button" class="btn-clear" onclick="limpiarFormCredito()">🧹 Limpiar</button>
-            </div>
-        </form>
-        <div id="tablaAmortizacionContainer" style="display:none; margin-top:20px;">
-            <h3>📅 Calendario (15 y Último)</h3>
-            <table id="amortTable"><thead><tr><th>No.</th><th>Vencimiento</th><th>Importe</th></tr></thead><tbody></tbody></table>
-        </div>
-    </div>
-
-    <div id="modalBusqueda" class="modal"><div class="modal-content"><h3>Clientes Activos</h3><table id="modalTable"><thead><tr><th>Cód.</th><th>Nombre</th><th>Acción</th></tr></thead><tbody></tbody></table><button onclick="cerrarModal()" class="btn-del">Cerrar</button></div></div>
-    
-    <div id="modalHistorial" class="modal">
-        <div class="modal-content" style="width: 85%;">
-            <h3>📋 Historial de Créditos (Descendente)</h3>
-            <div class="table-wrapper">
-                <table id="historialTable">
-                    <thead><tr><th>Folio</th><th>Cliente</th><th>Fecha</th><th>Importe</th><th>Pagos</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-            <button onclick="cerrarModalHistorial()" class="btn-del" style="margin-top:10px">Cerrar</button>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
-</body>
-</html>
+</div>
