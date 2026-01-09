@@ -1,3 +1,17 @@
+// --- CONFIGURACIÓN FIREBASE ---
+const firebaseConfig = {
+  apiKey: "AIzaSyBN5QRHGsr4-N-_vx152-21_1SOsuuOrmM",
+  authDomain: "datos-creditosweb.firebaseapp.com",
+  projectId: "datos-creditosweb",
+  storageBucket: "datos-creditosweb.firebasestorage.app",
+  messagingSenderId: "504600428376",
+  appId: "1:504600428376:web:c377b08e65d72523202f2d"
+};
+
+// Inicializar Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 let editIndex = null;
 const USER_OK = "admin", PASS_OK = "1234";
 
@@ -19,14 +33,15 @@ function showSection(section) {
     ocultarTodo();
     if(section === 'clientes') {
         document.getElementById('sectionClientes').style.display = 'block';
-        prepararNuevoCliente(); cargarClientes();
+        prepararNuevoCliente(); 
+        cargarClientes();
     } else {
         document.getElementById('sectionCreditos').style.display = 'block';
         prepararAltaCredito();
     }
 }
 
-// --- FORMATEO DE FECHA dd/mmm/aaaa ---
+// --- UTILIDADES ---
 function formatearFechaEspecial(fechaStr) {
     if(!fechaStr) return "";
     const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -34,43 +49,63 @@ function formatearFechaEspecial(fechaStr) {
     return `${dia}/${meses[parseInt(mes)-1]}/${año}`;
 }
 
-// --- GESTIÓN CLIENTES ---
-function prepararNuevoCliente() {
-    if(editIndex !== null) return;
-    let ultimo = parseInt(localStorage.getItem('ultimoCodigoCliente')) || 0;
-    document.getElementById('codigo').value = ultimo + 1;
+// --- LÓGICA AUTO-INCREMENTAL CON FIREBASE ---
+async function prepararNuevoCliente() {
+    db.ref('contadores/ultimoCodigoCliente').once('value', (snapshot) => {
+        let ultimo = snapshot.val() || 0;
+        document.getElementById('codigo').value = ultimo + 1;
+    });
 }
 
-document.getElementById('clientForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const codActual = document.getElementById('codigo').value;
-    const cliente = {
-        codigo: codActual, nombre: document.getElementById('nombre').value,
-        apellidoP: document.getElementById('apellidoPaterno').value,
-        apellidoM: document.getElementById('apellidoMaterno').value,
-        curp: document.getElementById('curp').value, estatus: document.getElementById('estatus').value
-    };
-    let clientes = JSON.parse(localStorage.getItem('misClientes')) || [];
-    if(editIndex === null) { clientes.push(cliente); localStorage.setItem('ultimoCodigoCliente', codActual); }
-    else { clientes[editIndex] = cliente; editIndex = null; }
-    localStorage.setItem('misClientes', JSON.stringify(clientes));
-    limpiarFormulario(); cargarClientes();
-});
-
-function cargarClientes() {
-    const clientes = JSON.parse(localStorage.getItem('misClientes')) || [];
-    const tbody = document.querySelector('#clientTable tbody');
-    tbody.innerHTML = clientes.map((c, i) => `<tr><td>${c.codigo}</td><td>${c.nombre} ${c.apellidoP}</td><td>${c.curp}</td><td><button onclick="eliminarCliente(${i})" class="btn-del">🗑️</button></td></tr>`).join('');
-}
-
-// --- GESTIÓN CRÉDITOS ---
-function prepararAltaCredito() {
-    let ultimo = parseInt(localStorage.getItem('ultimoFolio')) || 0;
-    document.getElementById('folio').value = ultimo + 1;
+async function prepararAltaCredito() {
+    db.ref('contadores/ultimoFolio').once('value', (snapshot) => {
+        let ultimo = snapshot.val() || 0;
+        document.getElementById('folio').value = ultimo + 1;
+    });
     document.getElementById('fechaCaptura').value = new Date().toISOString().split('T')[0];
     document.getElementById('tablaAmortizacionContainer').style.display = 'none';
 }
 
+// --- GESTIÓN CLIENTES ---
+document.getElementById('clientForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const codActual = document.getElementById('codigo').value;
+    const cliente = {
+        codigo: codActual,
+        nombre: document.getElementById('nombre').value,
+        apellidoP: document.getElementById('apellidoPaterno').value,
+        apellidoM: document.getElementById('apellidoMaterno').value,
+        curp: document.getElementById('curp').value,
+        estatus: document.getElementById('estatus').value
+    };
+
+    // Guardar en Firebase
+    db.ref('clientes/' + codActual).set(cliente).then(() => {
+        db.ref('contadores/ultimoCodigoCliente').set(parseInt(codActual));
+        limpiarFormulario();
+        cargarClientes();
+    });
+});
+
+function cargarClientes() {
+    db.ref('clientes').once('value', (snapshot) => {
+        const tbody = document.querySelector('#clientTable tbody');
+        tbody.innerHTML = "";
+        snapshot.forEach((child) => {
+            const c = child.val();
+            tbody.innerHTML += `<tr><td>${c.codigo}</td><td>${c.nombre} ${c.apellidoP}</td><td>${c.curp}</td>
+            <td><button onclick="eliminarCliente('${c.codigo}')" class="btn-del">🗑️</button></td></tr>`;
+        });
+    });
+}
+
+function eliminarCliente(codigo) {
+    if(confirm("¿Eliminar cliente?")) {
+        db.ref('clientes/' + codigo).remove().then(() => cargarClientes());
+    }
+}
+
+// --- GESTIÓN CRÉDITOS ---
 function calcularPagos() {
     const imp = parseFloat(document.getElementById('importe').value) || 0;
     const pag = parseInt(document.getElementById('numPagos').value) || 0;
@@ -94,66 +129,81 @@ document.getElementById('creditForm').addEventListener('submit', function(e) {
 });
 
 function guardarCredito() {
-    const folio = parseInt(document.getElementById('folio').value);
+    const folio = document.getElementById('folio').value;
     if(!document.getElementById('creditoClave').value) return alert("Seleccione cliente");
     
     const credito = {
-        folio: folio, clave: document.getElementById('creditoClave').value,
+        folio: parseInt(folio),
+        clave: document.getElementById('creditoClave').value,
         nombre: document.getElementById('creditoNombre').value,
         fechaCaptura: document.getElementById('fechaCaptura').value,
         fechaVencimiento: document.getElementById('fechaVencimiento').value,
-        importe: document.getElementById('importe').value, pagos: document.getElementById('numPagos').value
+        importe: document.getElementById('importe').value,
+        pagos: document.getElementById('numPagos').value
     };
 
-    let historial = JSON.parse(localStorage.getItem('historialCreditos')) || [];
-    const index = historial.findIndex(h => h.folio === folio);
-    if(index !== -1) historial[index] = credito; 
-    else { historial.push(credito); localStorage.setItem('ultimoFolio', folio); }
-    
-    localStorage.setItem('historialCreditos', JSON.stringify(historial));
-    alert("Crédito Guardado"); limpiarFormCredito();
+    db.ref('creditos/' + folio).set(credito).then(() => {
+        db.ref('contadores/ultimoFolio').set(parseInt(folio));
+        alert("Crédito Guardado en la Nube");
+        limpiarFormCredito();
+    });
 }
 
 function abrirHistorialCreditos() {
-    let historial = JSON.parse(localStorage.getItem('historialCreditos')) || [];
-    historial.sort((a,b) => b.fechaCaptura.localeCompare(a.fechaCaptura) || b.folio - a.folio);
-    
-    const tbody = document.querySelector('#historialTable tbody');
-    tbody.innerHTML = historial.map(h => `
-        <tr><td>${h.folio}</td><td>${h.nombre}</td><td>${formatearFechaEspecial(h.fechaCaptura)}</td>
-        <td>$ ${h.importe}</td><td>${h.pagos}</td>
-        <td><button onclick="consultarCredito(${h.folio})" class="btn-info">Ver</button></td></tr>`).join('');
-    document.getElementById('modalHistorial').style.display = 'block';
+    db.ref('creditos').once('value', (snapshot) => {
+        let historial = [];
+        snapshot.forEach(child => { historial.push(child.val()); });
+        
+        // Orden Descendente
+        historial.sort((a,b) => b.fechaCaptura.localeCompare(a.fechaCaptura) || b.folio - a.folio);
+        
+        const tbody = document.querySelector('#historialTable tbody');
+        tbody.innerHTML = historial.map(h => `
+            <tr><td>${h.folio}</td><td>${h.nombre}</td><td>${formatearFechaEspecial(h.fechaCaptura)}</td>
+            <td>$ ${h.importe}</td><td>${h.pagos}</td>
+            <td><button onclick="consultarCredito(${h.folio})" class="btn-info">Ver</button></td></tr>`).join('');
+        document.getElementById('modalHistorial').style.display = 'block';
+    });
 }
 
 function consultarCredito(folioBuscado) {
-    const historial = JSON.parse(localStorage.getItem('historialCreditos')) || [];
-    const h = historial.find(c => c.folio === folioBuscado);
-    if(h) {
-        document.getElementById('folio').value = h.folio;
-        document.getElementById('fechaCaptura').value = h.fechaCaptura;
-        document.getElementById('creditoClave').value = h.clave;
-        document.getElementById('creditoNombre').value = h.nombre;
-        document.getElementById('importe').value = h.importe;
-        document.getElementById('numPagos').value = h.pagos;
-        document.getElementById('fechaVencimiento').value = h.fechaVencimiento;
-        calcularPagos();
-        document.getElementById('creditForm').dispatchEvent(new Event('submit'));
-        cerrarModalHistorial();
-    }
+    db.ref('creditos/' + folioBuscado).once('value', (snapshot) => {
+        const h = snapshot.val();
+        if(h) {
+            document.getElementById('folio').value = h.folio;
+            document.getElementById('fechaCaptura').value = h.fechaCaptura;
+            document.getElementById('creditoClave').value = h.clave;
+            document.getElementById('creditoNombre').value = h.nombre;
+            document.getElementById('importe').value = h.importe;
+            document.getElementById('numPagos').value = h.pagos;
+            document.getElementById('fechaVencimiento').value = h.fechaVencimiento;
+            calcularPagos();
+            document.getElementById('creditForm').dispatchEvent(new Event('submit'));
+            cerrarModalHistorial();
+        }
+    });
 }
 
-// --- AUXILIARES ---
+// --- MODALES Y OTROS ---
 function abrirBuscador() {
-    const clientes = (JSON.parse(localStorage.getItem('misClientes')) || []).filter(c => c.estatus === 'Activo');
-    const tbody = document.querySelector('#modalTable tbody');
-    tbody.innerHTML = clientes.map(c => `<tr><td>${c.codigo}</td><td>${c.nombre} ${c.apellidoP}</td><td><button onclick="seleccionarCliente('${c.codigo}','${c.nombre} ${c.apellidoP}')" class="btn-save">Elegir</button></td></tr>`).join('');
-    document.getElementById('modalBusqueda').style.display = 'block';
+    db.ref('clientes').once('value', (snapshot) => {
+        const tbody = document.querySelector('#modalTable tbody');
+        tbody.innerHTML = "";
+        snapshot.forEach(child => {
+            const c = child.val();
+            if(c.estatus === 'Activo') {
+                tbody.innerHTML += `<tr><td>${c.codigo}</td><td>${c.nombre} ${c.apellidoP}</td>
+                <td><button onclick="seleccionarCliente('${c.codigo}','${c.nombre} ${c.apellidoP}')" class="btn-save">Elegir</button></td></tr>`;
+            }
+        });
+        document.getElementById('modalBusqueda').style.display = 'block';
+    });
 }
+
 function seleccionarCliente(c, n) { document.getElementById('creditoClave').value = c; document.getElementById('creditoNombre').value = n; cerrarModal(); }
 function cerrarModal() { document.getElementById('modalBusqueda').style.display = 'none'; }
 function cerrarModalHistorial() { document.getElementById('modalHistorial').style.display = 'none'; }
-function limpiarFormulario() { document.getElementById('clientForm').reset(); editIndex = null; prepararNuevoCliente(); }
+function limpiarFormulario() { document.getElementById('clientForm').reset(); prepararNuevoCliente(); }
 function limpiarFormCredito() { document.getElementById('creditForm').reset(); prepararAltaCredito(); }
 
 document.getElementById('loginForm').addEventListener('submit', (e) => {
